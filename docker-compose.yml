@@ -1,0 +1,64 @@
+services:
+  diw:
+    build: .
+    image: docker-image-watch:latest
+    restart: unless-stopped
+    
+    # Mount Docker socket for container management
+    # Note: Read-write access required for container operations
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Uncomment the line below for private registry authentication
+      # Run 'docker login <registry>' on host first, then mount the config
+      # - /root/.docker/config.json:/root/.docker/config.json:ro
+    
+    # Environment variables
+    environment:
+      # Cron schedule for update checks (crontab format)
+      # Default: Daily at 4:00 AM
+      # Examples:
+      #   "0 4 * * *"     - Daily at 4:00 AM
+      #   "0 */6 * * *"   - Every 6 hours
+      #   "0 0 * * 0"     - Weekly on Sunday at midnight
+      #   "*/30 * * * *"  - Every 30 minutes
+      - UPDATE_SCHEDULE=${UPDATE_SCHEDULE:-0 4 * * *}
+      
+      # Run update check immediately on startup
+      - RUN_ON_STARTUP=${RUN_ON_STARTUP:-false}
+      
+      # Webhook configuration (optional)
+      # URL to send reports to (Discord, Slack, or generic webhook)
+      - WEBHOOK_URL=${WEBHOOK_URL:-}
+      
+      # Webhook format: auto, discord, slack, telegram, markdown, json, generic
+      # 'auto' detects format from URL
+      - WEBHOOK_FORMAT=${WEBHOOK_FORMAT:-auto}
+      
+      # When to send webhooks
+      - WEBHOOK_ON_UPDATE=${WEBHOOK_ON_UPDATE:-true}   # Send when containers are updated
+      - WEBHOOK_ON_ERROR=${WEBHOOK_ON_ERROR:-true}     # Send when errors occur
+      - WEBHOOK_ALWAYS=${WEBHOOK_ALWAYS:-false}        # Always send (even if no changes)
+    
+    # Security options
+    security_opt:
+      - no-new-privileges:true
+    
+    # Read-only root filesystem for security
+    read_only: true
+    
+    # Limit resources
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+    
+    # Logging configuration
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
